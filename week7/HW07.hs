@@ -1,5 +1,6 @@
 {-# LANGUAGE MonadComprehensions, RecordWildCards #-}
 {-# OPTIONS_GHC -Wall #-}
+
 module HW07 where
 
 import Prelude hiding (mapM)
@@ -14,47 +15,65 @@ import System.Random
 
 import qualified Data.Vector as V
 
-
 -- Exercise 1 -----------------------------------------
 
 liftM :: Monad m => (a -> b) -> m a -> m b
-liftM = undefined
+liftM f ma = do
+  a <- ma
+  return $ f a
 
 swapV :: Int -> Int -> Vector a -> Maybe (Vector a)
-swapV = undefined
+swapV i j v = (liftM3 $ swapValues i j) (v!?i) (v!?j) (Just v)
+  where swapValues a b c d = (// [(a, d), (b, c)])
 
 -- Exercise 2 -----------------------------------------
 
 mapM :: Monad m => (a -> m b) -> [a] -> m [b]
-mapM = undefined
+mapM f as = sequence (map f as)
 
 getElts :: [Int] -> Vector a -> Maybe [a]
-getElts = undefined
+getElts is v = mapM (v!?) is
 
 -- Exercise 3 -----------------------------------------
 
 type Rnd a = Rand StdGen a
 
 randomElt :: Vector a -> Rnd (Maybe a)
-randomElt = undefined
+randomElt v
+  | V.length v == 0 = return Nothing
+  | otherwise = fmap (v!?) (getRandomR (0, V.length v - 1))
 
 -- Exercise 4 -----------------------------------------
 
 randomVec :: Random a => Int -> Rnd (Vector a)
-randomVec = undefined
+randomVec n = V.replicateM n getRandom
 
 randomVecR :: Random a => Int -> (a, a) -> Rnd (Vector a)
-randomVecR = undefined
+randomVecR n r = V.replicateM n (getRandomR r)
 
 -- Exercise 5 -----------------------------------------
 
+shuffleAtPos :: Int -> Vector a -> Rnd (Vector a)
+shuffleAtPos i v = do
+  let e1 = v ! i
+  j <- getRandomR (0, i)
+  let e2 = v ! j
+  return $ v // [(i, e2), (j, e1)]
+
 shuffle :: Vector a -> Rnd (Vector a)
-shuffle = undefined
+shuffle v = shuffle' (V.length v - 1) v
+
+shuffle' :: Int -> Vector a -> Rnd (Vector a)
+shuffle' 0 v = return v
+shuffle' n v = shuffleAtPos n v >>= shuffle' (n-1)
 
 -- Exercise 6 -----------------------------------------
 
 partitionAt :: Ord a => Vector a -> Int -> (Vector a, a, Vector a)
-partitionAt = undefined
+partitionAt v n = (lt, p, gt)
+  where p = v!n
+        lt = V.ifilter (\i e -> i /= n && e < p) v
+        gt = V.ifilter (\i e -> i /= n && e >= p) v
 
 -- Exercise 7 -----------------------------------------
 
@@ -65,7 +84,10 @@ quicksort (x:xs) = quicksort [ y | y <- xs, y < x ]
                    <> (x : quicksort [ y | y <- xs, y >= x ])
 
 qsort :: Ord a => Vector a -> Vector a
-qsort = undefined
+qsort v
+  | V.length v == 0 = V.empty
+  | otherwise = V.concat [qsort lt, V.singleton p, qsort gt]
+  where (lt, p, gt) = partitionAt v 0
 
 -- Exercise 8 -----------------------------------------
 
