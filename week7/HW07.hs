@@ -6,6 +6,8 @@ module HW07 where
 import Prelude hiding (mapM)
 import Cards
 
+import Control.Applicative ((<*>))
+import Control.Arrow (first)
 import Control.Monad hiding (mapM, liftM)
 import Control.Monad.Random
 import Data.Functor
@@ -86,37 +88,70 @@ quicksort (x:xs) = quicksort [ y | y <- xs, y < x ]
 qsort :: Ord a => Vector a -> Vector a
 qsort v
   | V.length v == 0 = V.empty
-  | otherwise = V.concat [qsort lt, V.singleton p, qsort gt]
-  where (lt, p, gt) = partitionAt v 0
+  | otherwise = V.concat [qsort [ y | y <- xs, y < x ],
+                          V.singleton x,
+                          qsort [ y | y <- xs, y >= x ]]
+  where x = v!0
+        xs = V.tail v
 
 -- Exercise 8 -----------------------------------------
 
 qsortR :: Ord a => Vector a -> Rnd (Vector a)
-qsortR = undefined
+qsortR v
+  | V.length v == 0 = return V.empty
+  | otherwise = do
+      pivot <- getRandomR (0, V.length v - 1)
+      let (lt, x, gt) = partitionAt v pivot
+      l <- qsortR lt
+      r <- qsortR gt
+      return $ V.concat [l, V.singleton x, r]
 
 -- Exercise 9 -----------------------------------------
 
 -- Selection
 select :: Ord a => Int -> Vector a -> Rnd (Maybe a)
-select = undefined
+select i v =
+  if i > len
+  then return Nothing
+  else do
+    pivot <- getRandomR (0, len - 1)
+    let (l, x, r) = partitionAt v pivot
+    case compare i (V.length l) of
+      LT -> select i l
+      EQ -> return $ Just x
+      GT -> select (i - V.length l - 1) r
+  where len = V.length v
 
 -- Exercise 10 ----------------------------------------
 
 allCards :: Deck
-allCards = undefined
+allCards = [Card l s | s <- suits, l <- labels]
 
 newDeck :: Rnd Deck
-newDeck =  undefined
+newDeck =  shuffle allCards
 
 -- Exercise 11 ----------------------------------------
 
 nextCard :: Deck -> Maybe (Card, Deck)
-nextCard = undefined
+nextCard d
+  | V.length d == 0 = Nothing
+  | otherwise = Just (d!0, V.tail d)
 
 -- Exercise 12 ----------------------------------------
 
 getCards :: Int -> Deck -> Maybe ([Card], Deck)
-getCards = undefined
+getCards n d = getCards' n (Just ([], d))
+
+consCard :: Maybe (Card, Deck) -> Maybe ([Card], Deck) -> Maybe ([Card], Deck)
+consCard a b = (\c d -> (fst c : fst d, snd c)) <$> a <*> b
+
+getCards' :: Int -> Maybe ([Card], Deck) -> Maybe ([Card], Deck)
+getCards' n cs
+--  | n == 0 = fmap (\(cs, d) -> (reverse cs, d)) cs
+  | n == 0 = fmap (first reverse) cs
+  | otherwise = do
+      let c = cs >>= (nextCard . snd)
+      getCards' (n-1) (consCard c cs)
 
 -- Exercise 13 ----------------------------------------
 
