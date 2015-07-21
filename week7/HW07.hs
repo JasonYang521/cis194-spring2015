@@ -13,7 +13,7 @@ import Control.Monad.Random
 import Data.Functor
 import Data.Monoid
 import Data.Vector (Vector, cons, (!), (!?), (//))
-import System.Random
+import System.Random()
 
 import qualified Data.Vector as V
 
@@ -88,9 +88,8 @@ quicksort (x:xs) = quicksort [ y | y <- xs, y < x ]
 qsort :: Ord a => Vector a -> Vector a
 qsort v
   | V.length v == 0 = V.empty
-  | otherwise = V.concat [qsort [ y | y <- xs, y < x ],
-                          V.singleton x,
-                          qsort [ y | y <- xs, y >= x ]]
+  | otherwise = qsort [ y | y <- xs, y < x ]
+                      V.++ cons x (qsort [ y | y <- xs, y >= x ])
   where x = v!0
         xs = V.tail v
 
@@ -104,7 +103,7 @@ qsortR v
       let (lt, x, gt) = partitionAt v pivot
       l <- qsortR lt
       r <- qsortR gt
-      return $ V.concat [l, V.singleton x, r]
+      return $ l V.++ cons x r
 
 -- Exercise 9 -----------------------------------------
 
@@ -175,8 +174,7 @@ repl s@State{..} | money <= 0  = putStrLn "You ran out of money!"
             amt <- read <$> getLine
             if amt < 1 || amt > money
             then play
-            else do
-              case getCards 2 deck of
+            else case getCards 2 deck of
                 Just ([c1, c2], d) -> do
                   putStrLn $ "You got:\n" ++ show c1
                   putStrLn $ "I got:\n" ++ show c2
