@@ -34,15 +34,32 @@ type State = String -> Int
 -- Exercise 1 -----------------------------------------
 
 extend :: State -> String -> Int -> State
-extend = undefined
+extend st a b c
+  |a == c = b
+  |otherwise = st c
 
 empty :: State
-empty = undefined
+empty _ = 0
 
 -- Exercise 2 -----------------------------------------
 
 evalE :: State -> Expression -> Int
-evalE = undefined
+evalE st (Var variable) = st variable
+evalE st (Val variable) = variable
+evalE st (Op expression bop expression2)
+  |bop == Plus = (evalE st expression) + (evalE st expression2)
+  |bop == Minus = (evalE st expression) - (evalE st expression2)     
+  |bop == Times = (evalE st expression) * (evalE st expression2)   
+  |bop == Divide = (evalE st expression) `div` (evalE st expression2)  
+  |bop == Gt && (evalE st expression) > (evalE st expression2) = 1
+  |bop == Ge && (evalE st expression) >= (evalE st expression2) = 1      
+  |bop == Lt && (evalE st expression) < (evalE st expression2) = 1
+  |bop == Le && (evalE st expression) <= (evalE st expression2) = 1
+  |bop == Eql && (evalE st expression) == (evalE st expression2) = 1
+  |otherwise = 0  
+  
+--let exp = (Op (Val 5) Plus (Var "x"))
+--evalE (extend empty "x" 10) exp 
 
 -- Exercise 3 -----------------------------------------
 
@@ -54,16 +71,29 @@ data DietStatement = DAssign String Expression
                      deriving (Show, Eq)
 
 desugar :: Statement -> DietStatement
-desugar = undefined
+desugar (Assign string expression) = DAssign string expression
+desugar (Incr string) = DAssign string (Op (Val 1) Plus (Var string))  
+desugar (If expression statement1 statement2)= DIf expression (desugar statement1) (desugar statement2)
+desugar (While expression statement) = DWhile expression (desugar statement)
+desugar (Sequence statement1 statement2) = DSequence (desugar statement1) (desugar statement2)
+desugar (For statement1 expression statement2 statement3) = 
+	DSequence (desugar statement1) (DWhile expression (DSequence (desugar statement2) (desugar statement3)))
+desugar (Skip)= DSkip
 
 
 -- Exercise 4 -----------------------------------------
 
 evalSimple :: State -> DietStatement -> State
-evalSimple = undefined
+evalSimple state (DAssign string expression) = extend state string (evalE state expression)
+evalSimple state (DIf expression dietstatement1 dietstatement2) = 
+	if(evalE state expression) /=0 then (evalSimple state dietstatement1) else (evalSimple state dietstatement2)
+evalSimple state (DWhile expression dietstatement) = 
+	if (evalE state expression) /=0 then evalSimple (evalSimple state dietstatement) (DWhile expression dietstatement) else state
+evalSimple state (DSequence dietstatement1 dietstatement2) = evalSimple (evalSimple state dietstatement1) dietstatement2
+evalSimple state DSkip = state 
 
 run :: State -> Statement -> State
-run = undefined
+run state statement = evalSimple state (desugar statement)
 
 -- Programs -------------------------------------------
 
