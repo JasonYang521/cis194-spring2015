@@ -8,28 +8,51 @@ import System.Environment (getArgs)
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map.Strict as Map
-
+import Data.Bits
 import Parser
 
 -- Exercise 1 -----------------------------------------
 
 getSecret :: FilePath -> FilePath -> IO ByteString
-getSecret = undefined
+getSecret filepath1 filepath2 = do 
+	resultone <- BS.readFile filepath1
+	resulttwo <- BS.readFile filepath2
+	let key = BS.pack . filter (/=0) $ BS.zipWith xor resultone resulttwo
+	return key
 
 -- Exercise 2 -----------------------------------------
 
 decryptWithKey :: ByteString -> FilePath -> IO ()
-decryptWithKey = undefined
+decryptWithKey key filepath = do	
+	ciphered <- BS.readFile(filepath++".enc")
+	let deciphered = BS.pack $ BS.zipWith xor ciphered (BS.cycle key)
+	BS.writeFile filepath deciphered
 
 -- Exercise 3 -----------------------------------------
 
 parseFile :: FromJSON a => FilePath -> IO (Maybe a)
-parseFile = undefined
+parseFile filePath= do	
+	json <- BS.readFile filePath 
+	let decodedJson = decode json
+	return decodedJson
 
 -- Exercise 4 -----------------------------------------
+isVictim :: Maybe [TId] -> Transaction -> Bool
+isVictim Nothing _ = False
+isVictim (Just ids) t = (tid t) `elem` ids
+
+getTransactions :: Maybe[Transaction] -> [Transaction]
+getTransactions Nothing = []
+getTransactions (Just transaction) = transaction
 
 getBadTs :: FilePath -> FilePath -> IO (Maybe [Transaction])
-getBadTs = undefined
+getBadTs victimpath transactionpath = do
+	victims <- parseFile victimpath
+	transactions <- parseFile transactionpath
+	let transactionList = getTransactions transactions
+	let victimTransactions = filter (isVictim victims) transactionList
+	return (Just victimTransactions)
+	
 
 -- Exercise 5 -----------------------------------------
 
