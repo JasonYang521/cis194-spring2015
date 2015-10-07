@@ -57,7 +57,7 @@ randomVecR n= V.replicateM n . getRandomR
 
 -- Exercise 5 -----------------------------------------
 
-shuffle :: Vector a -> IO (Vector a)
+shuffle :: Vector a -> Rnd (Vector a)
 shuffle vector = 
     let shuffle' 0 vector' = do return $ vector'
         shuffle' i vector' = do
@@ -69,8 +69,10 @@ shuffle vector =
 -- Exercise 6 -----------------------------------------
 
 partitionAt :: Ord a => Vector a -> Int -> (Vector a, a, Vector a)
-partitionAt vector i = ((V.filter (< pivot) vector),pivot, V.filter (>=pivot) vector)
-	where pivot = vector ! i
+partitionAt vector i = ((V.filter (< pivot) vector),pivot, V.ifilter greaterThan vector)
+	where 
+		pivot = vector ! i
+		greaterThan x v = x /= i && pivot <= v
 
 -- Exercise 7 -----------------------------------------
 
@@ -81,36 +83,73 @@ quicksort (x:xs) = quicksort [ y | y <- xs, y < x ]
                    <> (x : quicksort [ y | y <- xs, y >= x ])
 
 qsort :: Ord a => Vector a -> Vector a
-qsort = undefined
-
+qsort vector =
+	if V.null vector
+	then vector
+	else 
+		let 
+			x = V.head vector
+			t = V.tail vector
+		in qsort [ y | y <- t, y < x ]
+			<> cons x (qsort [ y | y <- t, y >= x ])
 -- Exercise 8 -----------------------------------------
 
 qsortR :: Ord a => Vector a -> Rnd (Vector a)
-qsortR = undefined
-
+qsortR vector = 
+	if V.null vector 
+	then do return vector
+	else do 
+		i <- getRandomR (0, (V.length vector)-1)
+		let (smaller, pivot, greater) = (partitionAt vector i)
+		greater' <- qsortR greater
+		smaller' <- qsortR smaller
+		return $ smaller' <> cons pivot greater'
+ 
 -- Exercise 9 -----------------------------------------
 
 -- Selection
 select :: Ord a => Int -> Vector a -> Rnd (Maybe a)
-select = undefined
+select rank vec 
+	| V.null vec = do return Nothing
+	| rank >= V.length vec = do return Nothing
+	| otherwise = do
+		i <- getRandomR (0, (V.length vec) -1)
+		let(los, pvt, his) = (partitionAt vec i)
+		let lo_len = V.length los
+		case compare rank lo_len of
+			EQ -> return $ Just pvt
+			LT -> do
+				t <- select rank los
+				return $ t
+			GT -> do
+				t <-select (rank - lo_len -1) his
+				return $ t
+	
 
 -- Exercise 10 ----------------------------------------
 
 allCards :: Deck
-allCards = undefined
+allCards = [Card l s | s <- suits, l <- labels]
 
 newDeck :: Rnd Deck
-newDeck =  undefined
+newDeck = shuffle allCards
 
 -- Exercise 11 ----------------------------------------
 
 nextCard :: Deck -> Maybe (Card, Deck)
-nextCard = undefined
+nextCard deck
+	| V.null deck = Nothing
+	| otherwise = Just (V.head deck, V.tail deck)
 
 -- Exercise 12 ----------------------------------------
 
 getCards :: Int -> Deck -> Maybe ([Card], Deck)
-getCards = undefined
+getCards num deck
+	| num == 0 = Just ([], deck)
+	| otherwise = do 
+		(nc, deck') <- nextCard deck
+		(rc, deck'') <- getCards (num-1) deck'
+		return $ ((nc:rc),deck'')
 
 -- Exercise 13 ----------------------------------------
 
@@ -120,15 +159,15 @@ repl :: State -> IO ()
 repl s@State{..} | money <= 0  = putStrLn "You ran out of money!"
                  | V.null deck = deckEmpty
                  | otherwise   = do
-  putStrLn $ "You have \ESC[32m$" ++ show money ++ "\ESC[0m"
+  putStrLn $ "You have $" ++ show money ++ ""
   putStrLn "Would you like to play (y/n)?"
   cont <- getLine
   if cont == "n"
-  then putStrLn $ "You left the casino with \ESC[32m$"
-           ++ show money ++ "\ESC[0m"
+  then putStrLn $ "You left the casino with $"
+           ++ show money ++ ""
   else play
-    where deckEmpty = putStrLn $ "The deck is empty. You got \ESC[32m$"
-                      ++ show money ++ "\ESC[0m"
+    where deckEmpty = putStrLn $ "The deck is empty. You got $"
+                      ++ show money ++ ""
           play = do
             putStrLn "How much do you want to bet?"
             amt <- read <$> getLine
